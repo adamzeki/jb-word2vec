@@ -1,7 +1,9 @@
 import re
 import collections
 import numpy as np
+from datasets import load_dataset
 
+# The text I used for inital testing, before the load_dataset function. Kept for small, quick tests
 RAW_TEXT = """
 anarchism originated as a term of abuse first used against early working class
 radicals including the diggers of the english revolution and the sans culottes of
@@ -17,6 +19,20 @@ as a pejorative term implying chaos but anarchists usually use the term to mean 
 society based on voluntary cooperation without domination or hierarchy several topics
 in this article may require some understanding of the history of anarchism
 """
+
+def load_wikitext(name: str = "wikitext-103-raw-v1", split: str = "train", max_articles: int | None = 5_000) -> str:
+    """
+    Loading a WikiText dataset and returning a single string
+    """
+    print(f"Loading '{name}' ({split} split) …")
+    ds = load_dataset("wikitext", name, split=split, trust_remote_code=False)
+ 
+    if max_articles is not None:
+        ds = ds.select(range(min(max_articles, len(ds))))
+ 
+    raw = " ".join(row["text"] for row in ds if row["text"].strip())
+    print(f"Raw text length: {len(raw)}")
+    return raw
 
 def tokenise(text: str) -> list[str]:
     text = text.lower()
@@ -284,7 +300,9 @@ def most_similar(word: str, W: np.ndarray, word2idx: dict, idx2word: dict, top_k
 if __name__ == "__main__":
     print("Word2Vec with Skip-Gram, Negative Sampling and Sub-Sampling, implemented in NumPy")
 
-    tokens = tokenise(RAW_TEXT)
+    text = load_wikitext(name="wikitext-103-raw-v1", split="train", max_articles=5_000)
+
+    tokens = tokenise(text)
 
     W, word2idx, idx2word = train(
         tokens,
@@ -298,21 +316,39 @@ if __name__ == "__main__":
         seed = 42,
     )
 
-    print("\n-------------- Nearest neighbours -------------- ")
-    for seed_word in ["anarchism", "political", "state", "society",]:
-        neighbours = most_similar(seed_word, W, word2idx, idx2word, top_k=5)
+    print("\n" + "=" * 75)
+    print("Nearest neighbours")
+    print("=" * 75)
+
+    seed_words = [
+        "king", "war", "philosophy",
+        "united_states",
+        "new_york",
+    ]
+
+    for word in seed_words:
+        neighbours = most_similar(word, W, word2idx, idx2word, top_k=5)
+
         if neighbours:
             pairs_str = ", ".join(f"{w} ({s:.3f})" for w, s in neighbours)
-            print(f"  {seed_word:15s} → {pairs_str}")
+            print(f"{word:20s} -> {pairs_str}")
 
-    print("\n-------------- Pair cosine similarities --------------")
+    print("\n" + "=" * 75)
+    print("Pairwise cosine similarities")
+    print("=" * 75)
+
     probe_pairs = [
-        ("anarchism", "state"),
-        ("political", "society"),
+        ("king", "queen"),
+        ("war", "peace"),
+        ("city", "town"),
     ]
+
     for w1, w2 in probe_pairs:
         if w1 in word2idx and w2 in word2idx:
             sim = cosine_similarity(W[word2idx[w1]], W[word2idx[w2]])
             print(f"sim({w1}, {w2}) = {sim:.4f}")
+        
+        else:
+            print(f"'{w1}' or '{w2}' not in vocabulary.")
 
     print("\nDone.")
