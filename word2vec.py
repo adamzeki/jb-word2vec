@@ -39,6 +39,61 @@ def build_vocab(tokens: list[str], min_count: int = 1) -> tuple[dict, dict, np.n
 
     return word2idx, idx2word, counts
 
+def bigram_scores(tokens: list[str], uni_counts: collections.Counter, delta: float) -> dict[tuple[str, str], float]: # Computing phrase detection score, based on the formula within the paper
+    bi_counts = collections.Counter()
+
+    for a, b in zip(tokens, tokens[1:]):
+        bi_counts[(a, b)] += 1
+
+    scores = {}
+    N = sum(uni_counts.values()) # Normalizing the scores to make them independent of the corpus size
+
+    for (a, b), count_ab in bi_counts.items():
+        count_a = uni_counts[a]
+        count_b = uni_counts[b]
+        scores[(a, b)] = (count_ab - delta) / (count_a * count_b / N)
+
+    return scores
+
+def detect_phrases(tokens: list[str], passes: int = 3, threshold: float = 10.0, delta: float = 5.0, min_count: int = 5) -> list[str]:
+    current = tokens
+    current_threshold = threshold
+
+    for pass_num in range(1, passes+1):
+        uni_count = collections.Counter(current)
+        scores = bigram_scores(current, uni_count, delta)
+
+        bi_counts = collections.Counter(zip(current, current[1:]))
+
+        to_merge = {pair for pair, score in scores.items() 
+            if score > current_threshold and bi_counts[pair] >= min_count}
+
+        if not to_merge:
+            print(f"Pass {pass_num}: No new phrases in pass, threshold = {current_threshold:.2f}")
+            break
+
+        merged = []
+        i=0
+        while i < len(current) - 1:
+            pair = (current[i], current[i+1])
+
+            if pair in to_merge:
+                merged.append(current[i] + "_" + current[i+1])
+                i+=2
+            else:
+                merged.append(current[i])
+                i+=1
+        
+        if i == len(current) - 1:
+            merged.append(current[i])
+
+        print(f"Pass {pass_num}: {len(current)} -> {len(merged)}")
+
+        current = merged
+        current_threshold *= 0.5
+
+    return current
+
 
 def subsample_tokens(token_ids: list[int], counts: np.ndarray, rng: np.random.Generator, threshold: float = 1e-3) -> list[int]:
     N = len(token_ids)
@@ -56,8 +111,8 @@ def subsample_tokens(token_ids: list[int], counts: np.ndarray, rng: np.random.Ge
 
     n_removed = N - len(filtered)
     pct = 100.0 * n_removed / N
-    print(f"Sub-sampling: {N} -> {len(filtered)} tokens "
-          f"(removed {n_removed}, {pct:.1f}%)")
+    print(f"Sub-sampling: {N} -> {len(filtered)} tokens")
+    print(f"(removed {n_removed}, {pct:.1f}%)")
 
     return filtered
 
@@ -137,9 +192,18 @@ def train(tokens: list[str],
           epochs: int = 5,
           min_count: int = 1,
           subsample_t: float = 1e-3,
+          phrase_passes: int = 3,
+          phrase_threshold: float = 5.0,
+          phrase_delta: float = 5.0,
+          phrase_min_count: int = 5,
           seed: int = 42
           ) -> tuple[np.ndarray, dict, dict]:
 
+    if phrase_passes > 0:
+        print("Detecting phrases...")
+        tokens = detect_phrases(tokens, passes=phrase_passes, threshold=phrase_threshold, delta=phrase_delta, min_count=phrase_min_count)
+
+    print("Building vocabulary...")
     word2idx, idx2word, counts = build_vocab(tokens, min_count)
     vocab_size = len(word2idx)
     print(f"Vocabulary size: {vocab_size}")
@@ -152,6 +216,7 @@ def train(tokens: list[str],
     rng = np.random.default_rng(seed)
 
     if subsample_t > 0.0:
+        print("Sub-sampling...")
         token_ids = subsample_tokens(token_ids, counts, rng, threshold=subsample_t)
     else:
         print("Sub-sampling disabled")
@@ -161,6 +226,7 @@ def train(tokens: list[str],
 
     W, C = init_weights(vocab_size, embed_dim, rng)
 
+    print("Starting training...")
     for epoch in range(1, epochs + 1):
 
         order = rng.permutation(len(pairs))
