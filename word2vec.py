@@ -36,7 +36,7 @@ def load_wikitext(name: str = "wikitext-103-raw-v1", split: str = "train", max_a
 
 def tokenise(text: str) -> list[str]:
     text = text.lower()
-    text = re.sub(r'[^a-z\s]', ' ', text)
+    text = re.sub(r'[^a-z\s]', ' ', text) 
     return text.split()
 
 
@@ -207,7 +207,7 @@ def train(tokens: list[str],
           learning_rate: float = 0.025,
           epochs: int = 5,
           min_count: int = 1,
-          subsample_t: float = 1e-3,
+          subsample_t: float = 1e-5,
           phrase_passes: int = 3,
           phrase_threshold: float = 5.0,
           phrase_delta: float = 5.0,
@@ -306,13 +306,17 @@ if __name__ == "__main__":
 
     W, word2idx, idx2word = train(
         tokens,
-        embed_dim = 50,
-        window_size = 2,
+        embed_dim = 100,
+        window_size = 5,
         num_negatives = 5,
         learning_rate = 0.025,
-        epochs = 30,
-        min_count = 1,
-        subsample_t = 1e-2,
+        epochs = 3,
+        min_count = 5,
+        subsample_t = 1e-3,
+        phrase_passes = 2,
+        phrase_threshold = 10.0,
+        phrase_delta = 10.0,
+        phrase_min_count = 5,
         seed = 42,
     )
 
@@ -321,9 +325,7 @@ if __name__ == "__main__":
     print("=" * 75)
 
     seed_words = [
-        "king", "war", "philosophy",
-        "united_states",
-        "new_york",
+        "king", "war", "united_states", "new_york",
     ]
 
     for word in seed_words:
