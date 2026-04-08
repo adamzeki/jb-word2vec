@@ -5,10 +5,10 @@ This script is a standalone implementation of Word2Vec built using NumPy. The lo
 ## Included Improvements
 The implementation goes beyond basic skip-grams by incorporating several features from the Mikolov papers:
 
-* **Negative Sampling (SGNS):** Replaces the standard softmax with a more efficient binary objective during training [cite: 1].
-* **Sub-sampling:** Programmatically reduces the frequency of common words (like "the" or "is") to prioritize more informative tokens [cite: 1].
-* **Phrase Detection:** Features a multi-pass system to detect and merge common phrases like "united_states" or "new_york" into single tokens [cite: 1].
-* **Optimized Noise Distribution:** Uses the unigram distribution raised to the $3/4$ power for selecting negative samples [cite: 1].
+* **Negative Sampling (SGNS):** Replaces the standard softmax with a more efficient binary objective during training
+* **Sub-sampling:** Programmatically reduces the frequency of common words (like "the" or "is") to prioritize more informative tokens
+* **Phrase Detection:** Features a multi-pass system to detect and merge common phrases like "united_states" or "new_york" into single tokens
+* **Optimized Noise Distribution:** Uses the unigram distribution raised to the $3/4$ power for selecting negative samples
 
 ## Requirements
 * Python 3.10+
